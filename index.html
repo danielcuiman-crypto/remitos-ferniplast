@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Remito de Transporte Interno · Ferniplast</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#14181b;
+    --bg-2:#1c2226;
+    --paper:#faf7f1;
+    --paper-2:#f1ece1;
+    --ink:#211d17;
+    --muted:#8b8578;
+    --line:#d8d2c4;
+    --red:#cf2030;
+    --red-dark:#9c1420;
+    --green:#2f7a4d;
+    --err:#b0261f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 20% -10%, #232b30 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:Arial, sans-serif;
+    min-height:100vh;
+    padding:40px 16px 80px;
+  }
+  .wrap{max-width:720px;margin:0 auto;}
+
+  .brandbar{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:22px;padding:0 4px;
+  }
+  .brandbar .tag{
+    font-family:Arial, sans-serif;
+    font-size:12px;letter-spacing:.04em;color:#8f978f;
+  }
+  .admin-link{
+    background:none;border:none;color:#9aa0a3;font-family:Arial, sans-serif;
+    font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;
+    padding:4px 0;
+  }
+  .admin-link:hover{color:#fff;}
+
+  .sheet{
+    background:var(--paper);
+    box-shadow:0 30px 70px rgba(0,0,0,.45), 0 2px 0 rgba(255,255,255,.03) inset;
+    border:1px solid #00000022;
+  }
+
+  .letterhead{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    padding:26px 30px 20px;border-bottom:2px solid var(--ink);
+    flex-wrap:wrap;gap:16px;
+  }
+  .logo-img{
+    height:52px;width:auto;display:block;
+  }
+  .doc-meta{text-align:right;}
+  .doc-meta .doc-title{font-size:13px;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;}
+  .doc-meta input[type=date]{
+    font-family:Arial, sans-serif;font-size:15px;color:var(--ink);
+    background:transparent;border:none;border-bottom:1px solid var(--ink);
+    padding:2px 0;text-align:right;width:150px;
+  }
+
+  .section{padding:22px 30px;border-bottom:1px solid var(--line);}
+  .section:last-of-type{border-bottom:none;}
+  .section h2{
+    font-size:12px;letter-spacing:.08em;text-transform:none;
+    color:var(--red-dark);margin:0 0 14px;font-weight:600;
+  }
+
+  .field-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  @media(max-width:560px){.field-row{grid-template-columns:1fr;}}
+  .field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;}
+  .field input[type=text]{
+    width:100%;border:none;border-bottom:1px solid var(--ink);
+    background:transparent;font-family:Arial, sans-serif;font-size:15px;
+    padding:4px 2px;color:var(--ink);
+  }
+  .field input:focus{outline:none;border-bottom:2px solid var(--red);}
+  .field select{
+    width:100%;border:none;border-bottom:1px solid var(--ink);
+    background:transparent;font-family:Arial, sans-serif;font-size:15px;
+    padding:5px 2px;color:var(--ink);
+  }
+  .field select:focus{outline:none;border-bottom:2px solid var(--red);}
+  .field .dest-otro{
+    width:100%;border:none;border-bottom:1px solid var(--ink);
+    background:transparent;font-family:Arial, sans-serif;font-size:14px;
+    padding:4px 2px;color:var(--ink);
+  }
+
+  table.items{width:100%;border-collapse:collapse;margin-top:4px;}
+  table.items th{
+    text-align:left;font-size:11px;color:var(--muted);font-weight:600;
+    border-bottom:1px solid var(--ink);padding:6px 8px;letter-spacing:.03em;
+  }
+  table.items td{padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  table.items input{
+    width:100%;border:none;background:transparent;
+    font-family:Arial, sans-serif;font-size:13.5px;color:var(--ink);
+    padding:6px 2px;
+  }
+  table.items input:focus{outline:none;background:#fff;}
+  table.items td.desc input{font-family:Arial, sans-serif;font-size:14px;}
+  td.qty{width:70px;}
+  td.serial{width:150px;}
+  td.rm{width:34px;text-align:center;}
+  .rm-btn{
+    border:none;background:none;color:#b8b1a0;cursor:pointer;font-size:16px;
+    line-height:1;padding:2px 6px;
+  }
+  .rm-btn:hover{color:var(--err);}
+  .add-row-btn{
+    margin-top:12px;background:none;border:1px dashed var(--muted);color:var(--ink);
+    font-family:Arial, sans-serif;font-size:12px;padding:8px 14px;
+    cursor:pointer;border-radius:2px;
+  }
+  .add-row-btn:hover{border-color:var(--red);color:var(--red-dark);}
+
+  .signers{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;}
+  @media(max-width:640px){.signers{grid-template-columns:1fr;}}
+  .signer-block{border:1px solid var(--line);padding:12px;background:#fff;}
+  .signer-block h3{
+    font-size:11px;letter-spacing:.05em;color:var(--muted);margin:0 0 8px;font-weight:600;
+  }
+  .sig-canvas-wrap{
+    position:relative;border:1px dashed #c8c1ae;background:
+      repeating-linear-gradient(0deg,transparent,transparent 100%);
+    touch-action:none;
+  }
+  .sig-canvas-wrap canvas{width:100%;height:110px;display:block;cursor:crosshair;}
+  .sig-placeholder{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:11px;color:#c3bda9;pointer-events:none;font-family:Arial, sans-serif;
+  }
+  .sig-tools{display:flex;justify-content:space-between;align-items:center;margin-top:6px;}
+  .clear-sig{
+    background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;
+    text-decoration:underline;padding:0;font-family:Arial, sans-serif;
+  }
+  .sig-status{font-size:10px;font-family:Arial, sans-serif;}
+  .sig-status.ok{color:var(--green);}
+  .sig-status.pending{color:var(--muted);}
+  .signer-block input[type=text]{
+    width:100%;border:none;border-top:1px solid var(--ink);margin-top:10px;
+    padding-top:6px;font-family:Arial, sans-serif;font-size:13px;
+    background:transparent;
+  }
+  .signer-block input:focus{outline:none;}
+  .signer-block .cap{font-size:9.5px;color:var(--muted);margin-top:3px;}
+  .signer-block .sig-cap{margin:0 0 4px;text-transform:none;}
+  .signer-block .acl-label{
+    display:block;font-size:10.5px;color:var(--muted);margin-top:12px;letter-spacing:.03em;
+  }
+  .signer-block input[type=text]{margin-top:4px;}
+
+  .footer-actions{padding:24px 30px 30px;}
+  .submit-btn{
+    width:100%;background:var(--red);color:#fff;border:none;
+    font-family:Arial, sans-serif;font-weight:600;font-size:16px;
+    padding:15px;cursor:pointer;letter-spacing:.01em;
+  }
+  .submit-btn:hover{background:var(--red-dark);}
+  .submit-btn:disabled{background:#c9c2b3;cursor:not-allowed;}
+  .error-msg{color:var(--err);font-size:12.5px;margin-top:10px;font-family:Arial, sans-serif;}
+
+  /* success */
+  .success-sheet{padding:60px 30px;text-align:center;}
+  .success-sheet .stamp{
+    display:inline-block;border:2px solid var(--green);color:var(--green);
+    font-family:Arial, sans-serif;font-size:13px;letter-spacing:.08em;
+    padding:8px 18px;transform:rotate(-3deg);margin-bottom:22px;
+  }
+  .success-sheet h2{font-size:22px;margin:0 0 10px;}
+  .success-sheet p{color:var(--muted);font-size:14px;margin:0 0 4px;}
+  .success-sheet .rid{font-family:Arial, sans-serif;font-size:13px;color:var(--ink);margin-bottom:26px;}
+  .new-btn{
+    background:var(--ink);color:#fff;border:none;padding:12px 24px;
+    font-family:Arial, sans-serif;font-weight:600;cursor:pointer;font-size:14px;
+  }
+
+  /* admin */
+  .admin-sheet{padding:36px 30px;}
+  .admin-sheet h2{font-size:18px;margin:0 0 4px;}
+  .admin-sheet .sub{color:var(--muted);font-size:12.5px;margin:0 0 22px;}
+  .admin-login input{
+    width:100%;border:1px solid var(--line);padding:12px;font-family:Arial, sans-serif;
+    font-size:14px;margin-bottom:12px;background:#fff;
+  }
+  .admin-login button, .admin-panel .primary-btn{
+    background:var(--ink);color:#fff;border:none;padding:12px 20px;
+    font-family:Arial, sans-serif;font-weight:600;cursor:pointer;font-size:14px;
+  }
+  .back-link{
+    background:none;border:none;color:var(--muted);font-family:Arial, sans-serif;
+    font-size:12px;cursor:pointer;text-decoration:underline;margin-bottom:18px;padding:0;
+  }
+  .admin-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+  table.admin-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.admin-table th{
+    text-align:left;border-bottom:1px solid var(--ink);padding:8px 6px;
+    color:var(--muted);font-weight:600;font-size:10.5px;letter-spacing:.03em;
+  }
+  table.admin-table td{border-bottom:1px solid var(--line);padding:8px 6px;vertical-align:top;}
+  .badge{font-family:Arial, sans-serif;font-size:10px;padding:2px 6px;border:1px solid;}
+  .badge.ok{color:var(--green);border-color:var(--green);}
+  .badge.no{color:var(--err);border-color:var(--err);}
+  .del-btn{background:none;border:none;color:#b8b1a0;cursor:pointer;font-size:11px;text-decoration:underline;}
+  .del-btn:hover{color:var(--err);}
+  .empty-state{color:var(--muted);font-size:13px;padding:20px 0;text-align:center;}
+  .note{font-size:11px;color:var(--muted);margin-top:16px;line-height:1.5;}
+  .pw-change-box{margin-top:26px;padding-top:18px;border-top:1px solid var(--line);}
+  .pw-change-box input{
+    width:100%;border:1px solid var(--line);padding:10px;font-family:Arial, sans-serif;
+    font-size:13px;margin-bottom:10px;background:#fff;
+  }
+  .pw-change-box #savePwBtn{
+    background:var(--ink);color:#fff;border:none;padding:10px 18px;
+    font-family:Arial, sans-serif;font-weight:600;cursor:pointer;font-size:13px;
+  }
+  .open-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:14px 4px;border-bottom:1px solid var(--line);cursor:pointer;flex-wrap:wrap;
+  }
+  .open-row:hover{background:#f3efe6;}
+  .open-row-id{font-family:Arial, sans-serif;font-size:12px;color:var(--muted);}
+  .open-row-sub{font-size:14.5px;margin-top:2px;}
+  .open-row-badges{display:flex;gap:6px;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brandbar">
+    <span class="tag">FERNIPLAST · LOGÍSTICA INTERNA</span>
+    <div style="display:flex;gap:16px;align-items:center;">
+      <button class="admin-link" id="openListLinkBtn">Remitos abiertos</button>
+      <button class="admin-link" id="adminLinkBtn">Acceso administrador</button>
+    </div>
+  </div>
+  <div id="app"></div>
+</div>
+
+<script>
+const LOGO_DATA_URI = "data:image/png;base64,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";
+const DEFAULT_ADMIN_PASSWORD = "ferniplast2026"; // clave inicial, se puede cambiar desde el panel de administrador
+
+const DESTINATARIO_OPTIONS = [
+  'Ferni1','Ferni2','Ferni3','Ferni4','Ferni5','Ferni6','Ferni7','Ferni8','Ferni9','Ferni10',
+  'FerniMayorista','Sistemas Catamarca','Sistemas Rancagua','Playa'
+];
+
+async function getAdminPassword(){
+  try{
+    const res = await window.storage.get('admin-config:password', true);
+    if(res && res.value) return res.value;
+  }catch(e){ /* no hay clave guardada todavía, se usa la default */ }
+  return DEFAULT_ADMIN_PASSWORD;
+}
+
+async function setAdminPassword(newPw){
+  return await window.storage.set('admin-config:password', newPw, true);
+}
+
+let view = 'form';
+let adminAuthed = false;
+let submittedId = null;
+let submittedStillOpen = false;
+let formError = '';
+let adminError = '';
+let submissions = [];
+let loadingSubs = false;
+
+let openSubmissions = [];
+let loadingOpen = false;
+let activeOpenId = null;   // id of the remito being completed in 'complete-signature' view
+let activeOpenSub = null;  // full loaded data of that remito
+let completePads = {};     // signature pads for the completion view
+let completeAclaraciones = {};
+let completeError = '';
+
+let itemRows = Array.from({length:5}, () => ({cantidad:'', serial:'', descripcion:''}));
+let header = {fecha:'', remitente:'', transporta:'', destinatario:'', destinatarioOtro:''};
+let signers = {
+  remitente: {aclaracion:''},
+  transporta: {aclaracion:''},
+  receptor: {aclaracion:''}
+};
+let pads = {}; // canvas signature pad instances
+
+function el(html){
+  const t = document.createElement('template');
+  t.innerHTML = html.trim();
+  return t.content.firstChild;
+}
+
+class SignaturePad{
+  constructor(canvas){
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.drawing = false;
+    this.hasInk = false;
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+    canvas.addEventListener('pointerdown', e => this.start(e));
+    canvas.addEventListener('pointermove', e => this.move(e));
+    window.addEventListener('pointerup', () => this.end());
+    canvas.addEventListener('pointerleave', () => {});
+  }
+  resize(){
+    const rect = this.canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const prevData = this.hasInk ? this.canvas.toDataURL() : null;
+    this.canvas.width = rect.width * dpr;
+    this.canvas.height = rect.height * dpr;
+    this.ctx.setTransform(dpr,0,0,dpr,0,0);
+    this.ctx.lineWidth = 2;
+    this.ctx.lineCap = 'round';
+    this.ctx.strokeStyle = '#1a1a1a';
+    if(prevData){
+      const img = new Image();
+      img.onload = () => this.ctx.drawImage(img,0,0,rect.width,rect.height);
+      img.src = prevData;
+    }
+  }
+  pos(e){
+    const rect = this.canvas.getBoundingClientRect();
+    return {x:e.clientX-rect.left, y:e.clientY-rect.top};
+  }
+  start(e){
+    this.drawing = true;
+    this.hasInk = true;
+    const p = this.pos(e);
+    this.ctx.beginPath();
+    this.ctx.moveTo(p.x,p.y);
+    this.canvas.setPointerCapture(e.pointerId);
+    this.onchange && this.onchange();
+  }
+  move(e){
+    if(!this.drawing) return;
+    const p = this.pos(e);
+    this.ctx.lineTo(p.x,p.y);
+    this.ctx.stroke();
+  }
+  end(){ this.drawing = false; }
+  clear(){
+    this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+    this.hasInk = false;
+    this.onchange && this.onchange();
+  }
+  isEmpty(){ return !this.hasInk; }
+  toDataURL(){ return this.canvas.toDataURL('image/png'); }
+}
+
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  if(view === 'form') app.appendChild(renderForm());
+  else if(view === 'success') app.appendChild(renderSuccess());
+  else if(view === 'open-list') app.appendChild(renderOpenList());
+  else if(view === 'complete-signature') app.appendChild(renderCompleteSignature());
+  else if(view === 'admin-login') app.appendChild(renderAdminLogin());
+  else if(view === 'admin-panel') app.appendChild(renderAdminPanel());
+}
+
+function renderForm(){
+  const sheet = el(`<div class="sheet"></div>`);
+
+  sheet.appendChild(el(`
+    <div class="letterhead">
+      <div><img class="logo-img" src="${LOGO_DATA_URI}" alt="Ferniplast"></div>
+      <div class="doc-meta">
+        <div class="doc-title">REMITO DE TRANSPORTE INTERNO</div>
+      </div>
+    </div>
+  `));
+  const dateWrap = sheet.querySelector('.doc-meta');
+  const dateInput = el(`<input type="date">`);
+  dateInput.value = header.fecha;
+  dateInput.addEventListener('change', e => header.fecha = e.target.value);
+  dateWrap.appendChild(dateInput);
+
+  // header fields
+  const headSec = el(`<div class="section"><h2>Datos generales</h2></div>`);
+  const fr = el(`<div class="field-row"></div>`);
+  [['remitente','Remitente'],['transporta','Transporta']].forEach(([key,label])=>{
+    const f = el(`<div class="field"><label>${label}</label><input type="text" placeholder="Nombre / sector"></div>`);
+    const input = f.querySelector('input');
+    input.value = header[key];
+    input.addEventListener('input', e => header[key] = e.target.value);
+    fr.appendChild(f);
+  });
+
+  // destinatario: lista desplegable + "Otro"
+  const destField = el(`
+    <div class="field">
+      <label>Destinatario</label>
+      <select class="dest-select">
+        <option value="">Seleccionar...</option>
+        ${DESTINATARIO_OPTIONS.map(o => `<option value="${o}">${o}</option>`).join('')}
+        <option value="Otro">Otro</option>
+      </select>
+      <input type="text" class="dest-otro" placeholder="Escribir destinatario" style="display:none;margin-top:8px;">
+    </div>
+  `);
+  const destSelect = destField.querySelector('.dest-select');
+  const destOtro = destField.querySelector('.dest-otro');
+  destSelect.value = header.destinatario && DESTINATARIO_OPTIONS.includes(header.destinatario)
+    ? header.destinatario
+    : (header.destinatario === 'Otro' ? 'Otro' : '');
+  if(header.destinatario === 'Otro'){
+    destOtro.style.display = 'block';
+    destOtro.value = header.destinatarioOtro;
+  }
+  destSelect.addEventListener('change', e => {
+    header.destinatario = e.target.value;
+    destOtro.style.display = e.target.value === 'Otro' ? 'block' : 'none';
+    if(e.target.value !== 'Otro') header.destinatarioOtro = '';
+  });
+  destOtro.addEventListener('input', e => header.destinatarioOtro = e.target.value);
+  fr.appendChild(destField);
+
+  headSec.appendChild(fr);
+  sheet.appendChild(headSec);
+
+  // items table
+  const itemSec = el(`<div class="section"><h2>Mercadería a transportar</h2></div>`);
+  const table = el(`
+    <table class="items">
+      <thead><tr><th style="width:70px">Cantidad</th><th style="width:150px">N° Serial</th><th>Descripción</th><th style="width:34px"></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  `);
+  const tbody = table.querySelector('tbody');
+  itemRows.forEach((row, idx) => {
+    const tr = el(`
+      <tr>
+        <td class="qty"><input type="text" inputmode="numeric" placeholder="0"></td>
+        <td class="serial"><input type="text" placeholder="—"></td>
+        <td class="desc"><input type="text" placeholder="Descripción del artículo"></td>
+        <td class="rm"><button class="rm-btn" title="Quitar línea">✕</button></td>
+      </tr>
+    `);
+    const [qtyIn, serIn, descIn] = tr.querySelectorAll('input');
+    qtyIn.value = row.cantidad; serIn.value = row.serial; descIn.value = row.descripcion;
+    qtyIn.addEventListener('input', e => itemRows[idx].cantidad = e.target.value);
+    serIn.addEventListener('input', e => itemRows[idx].serial = e.target.value);
+    descIn.addEventListener('input', e => itemRows[idx].descripcion = e.target.value);
+    tr.querySelector('.rm-btn').addEventListener('click', () => {
+      itemRows.splice(idx,1);
+      render();
+    });
+    tbody.appendChild(tr);
+  });
+  itemSec.appendChild(table);
+  const addBtn = el(`<button class="add-row-btn">+ Agregar línea</button>`);
+  addBtn.addEventListener('click', () => {
+    itemRows.push({cantidad:'',serial:'',descripcion:''});
+    render();
+  });
+  itemSec.appendChild(addBtn);
+  sheet.appendChild(itemSec);
+
+  // signatures
+  const sigSec = el(`<div class="section"><h2>Firmas</h2><p class="cap" style="margin:-8px 0 14px;">La firma de Remitente es obligatoria para guardar. Transporta y Receptor pueden completarse más tarde desde "Remitos abiertos".</p></div>`);
+  const signersGrid = el(`<div class="signers"></div>`);
+  [['remitente','Remitente',true],['transporta','Transporta',false],['receptor','Receptor',false]].forEach(([key,label,required])=>{
+    const block = el(`
+      <div class="signer-block">
+        <h3>${label}${required ? '' : ' <span style="color:var(--muted);font-weight:400;">(opcional ahora)</span>'}</h3>
+        <div class="cap sig-cap">Firma</div>
+        <div class="sig-canvas-wrap">
+          <canvas></canvas>
+          <div class="sig-placeholder">firmar aquí</div>
+        </div>
+        <div class="sig-tools">
+          <button class="clear-sig">Limpiar</button>
+          <span class="sig-status pending">sin firma</span>
+        </div>
+        <label class="acl-label">Aclaración</label>
+        <input type="text" placeholder="Nombre y apellido">
+      </div>
+    `);
+    const canvas = block.querySelector('canvas');
+    const placeholder = block.querySelector('.sig-placeholder');
+    const status = block.querySelector('.sig-status');
+    const pad = new SignaturePad(canvas);
+    pad.onchange = () => {
+      if(pad.isEmpty()){
+        placeholder.style.display = 'flex';
+        status.textContent = 'sin firma'; status.className = 'sig-status pending';
+      } else {
+        placeholder.style.display = 'none';
+        status.textContent = 'firmado'; status.className = 'sig-status ok';
+      }
+    };
+    pads[key] = pad;
+    block.querySelector('.clear-sig').addEventListener('click', () => pad.clear());
+    const aclInput = block.querySelector('input[type=text]');
+    aclInput.value = signers[key].aclaracion;
+    aclInput.addEventListener('input', e => signers[key].aclaracion = e.target.value);
+    signersGrid.appendChild(block);
+  });
+  sigSec.appendChild(signersGrid);
+  sheet.appendChild(sigSec);
+
+  // footer
+  const footer = el(`<div class="footer-actions"></div>`);
+  const btn = el(`<button class="submit-btn">Guardar remito</button>`);
+  btn.addEventListener('click', () => handleSubmit());
+  footer.appendChild(btn);
+  if(formError){
+    footer.appendChild(el(`<div class="error-msg">${formError}</div>`));
+  }
+  sheet.appendChild(footer);
+
+  return sheet;
+}
+
+function getDestinatarioValue(){
+  if(header.destinatario === 'Otro') return header.destinatarioOtro.trim();
+  return header.destinatario.trim();
+}
+
+async function handleSubmit(){
+  formError = '';
+  const destinatarioFinal = getDestinatarioValue();
+  if(!header.fecha || !header.remitente.trim() || !header.transporta.trim() || !destinatarioFinal){
+    formError = header.destinatario === 'Otro' && !header.destinatarioOtro.trim()
+      ? 'Escribí el nombre del destinatario en el campo "Otro".'
+      : 'Completá fecha, remitente, transporta y destinatario.';
+    render(); return;
+  }
+  const validItems = itemRows.filter(r => r.cantidad.trim() && r.descripcion.trim());
+  if(validItems.length === 0){
+    formError = 'Agregá al menos un artículo con cantidad y descripción.';
+    render(); return;
+  }
+  // Remitente es obligatorio. Transporta y Receptor son opcionales, pero si se
+  // empezó a completar uno (firma o aclaración) hay que completar el otro también.
+  if(pads.remitente.isEmpty() || !signers.remitente.aclaracion.trim()){
+    formError = 'Falta la firma o la aclaración de Remitente.';
+    render(); return;
+  }
+  for(const [key,label] of [['transporta','Transporta'],['receptor','Receptor']]){
+    const hasFirma = !pads[key].isEmpty();
+    const hasAcl = !!signers[key].aclaracion.trim();
+    if(hasFirma !== hasAcl){
+      formError = `Completá firma y aclaración de ${label}, o dejá ambas vacías para completarlas después.`;
+      render(); return;
+    }
+  }
+
+  const firmas = {
+    remitente: {firma: pads.remitente.toDataURL(), aclaracion: signers.remitente.aclaracion.trim()},
+    transporta: (!pads.transporta.isEmpty() && signers.transporta.aclaracion.trim())
+      ? {firma: pads.transporta.toDataURL(), aclaracion: signers.transporta.aclaracion.trim()} : null,
+    receptor: (!pads.receptor.isEmpty() && signers.receptor.aclaracion.trim())
+      ? {firma: pads.receptor.toDataURL(), aclaracion: signers.receptor.aclaracion.trim()} : null
+  };
+
+  const id = 'REM-' + Date.now().toString(36).toUpperCase();
+  const data = {
+    id,
+    fecha: header.fecha,
+    remitente: header.remitente.trim(),
+    transporta: header.transporta.trim(),
+    destinatario: destinatarioFinal,
+    items: validItems,
+    firmas,
+    createdAt: new Date().toISOString()
+  };
+
+  try{
+    const res = await window.storage.set('submissions:'+id, JSON.stringify(data), true);
+    if(!res){ formError = 'No se pudo guardar el remito. Probá de nuevo.'; render(); return; }
+  }catch(err){
+    console.error(err);
+    formError = 'Error de almacenamiento. Probá de nuevo.';
+    render(); return;
+  }
+
+  submittedId = id;
+  submittedStillOpen = !(firmas.transporta && firmas.receptor);
+  view = 'success';
+  resetForm();
+  render();
+}
+
+function resetForm(){
+  itemRows = Array.from({length:5}, () => ({cantidad:'', serial:'', descripcion:''}));
+  header = {fecha:'', remitente:'', transporta:'', destinatario:'', destinatarioOtro:''};
+  signers = {remitente:{aclaracion:''}, transporta:{aclaracion:''}, receptor:{aclaracion:''}};
+  pads = {};
+  formError = '';
+}
+
+function renderSuccess(){
+  const sheet = el(`
+    <div class="sheet success-sheet">
+      <div class="stamp">${submittedStillOpen ? '⏳ PENDIENTE' : '✓ REGISTRADO'}</div>
+      <h2>${submittedStillOpen ? 'Remito guardado, falta completar firmas' : 'Remito guardado'}</h2>
+      <p>${submittedStillOpen
+        ? 'Queda en "Remitos abiertos" hasta que Transporta y Receptor firmen.'
+        : 'El comprobante quedó registrado con firmas de las tres partes.'}</p>
+      <div class="rid">N° ${submittedId}</div>
+    </div>
+  `);
+  const btnRow = el(`<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;"></div>`);
+  const btn = el(`<button class="new-btn">Cargar otro remito</button>`);
+  btn.addEventListener('click', () => { view = 'form'; render(); });
+  btnRow.appendChild(btn);
+  if(submittedStillOpen){
+    const btn2 = el(`<button class="new-btn" style="background:var(--red);">Ver remitos abiertos</button>`);
+    btn2.addEventListener('click', () => { view = 'open-list'; render(); loadOpenSubmissions(); });
+    btnRow.appendChild(btn2);
+  }
+  sheet.appendChild(btnRow);
+  return sheet;
+}
+
+function isSubOpen(sub){
+  return !(sub.firmas && sub.firmas.transporta && sub.firmas.receptor);
+}
+
+function missingSigners(sub){
+  const missing = [];
+  if(!sub.firmas || !sub.firmas.transporta) missing.push('Transporta');
+  if(!sub.firmas || !sub.firmas.receptor) missing.push('Receptor');
+  return missing;
+}
+
+async function loadOpenSubmissions(){
+  loadingOpen = true;
+  render();
+  try{
+    const listRes = await window.storage.list('submissions:', true);
+    const keys = (listRes && listRes.keys) ? listRes.keys : [];
+    const results = [];
+    for(const k of keys){
+      try{
+        const r = await window.storage.get(k, true);
+        if(r && r.value){
+          const sub = JSON.parse(r.value);
+          if(isSubOpen(sub)) results.push(sub);
+        }
+      }catch(e){ /* skip unreadable entry */ }
+    }
+    results.sort((a,b) => (a.createdAt||'').localeCompare(b.createdAt||''));
+    openSubmissions = results;
+  }catch(err){
+    console.error(err);
+    openSubmissions = [];
+  }
+  loadingOpen = false;
+  render();
+}
+
+function renderOpenList(){
+  const sheet = el(`
+    <div class="sheet admin-sheet">
+      <button class="back-link" id="backBtn">← Volver al formulario</button>
+      <h2>Remitos abiertos</h2>
+      <p class="sub">Remitos que todavía necesitan la firma de Transporta y/o Receptor.</p>
+      <div id="openHolder"></div>
+    </div>
+  `);
+  sheet.querySelector('#backBtn').addEventListener('click', () => { view='form'; render(); });
+
+  const holder = sheet.querySelector('#openHolder');
+  if(loadingOpen){
+    holder.appendChild(el(`<div class="empty-state">Cargando remitos abiertos…</div>`));
+  } else if(openSubmissions.length === 0){
+    holder.appendChild(el(`<div class="empty-state">No hay remitos pendientes de firma. 🎉</div>`));
+  } else {
+    openSubmissions.forEach(sub => {
+      const missing = missingSigners(sub);
+      const row = el(`
+        <div class="open-row">
+          <div class="open-row-main">
+            <div class="open-row-id">${sub.id} · ${sub.fecha||'—'}</div>
+            <div class="open-row-sub">${sub.remitente||'—'} → ${sub.destinatario||'—'}</div>
+          </div>
+          <div class="open-row-badges">
+            ${missing.map(m => `<span class="badge no">falta ${m}</span>`).join('')}
+          </div>
+        </div>
+      `);
+      row.addEventListener('click', () => {
+        activeOpenId = sub.id;
+        activeOpenSub = null;
+        completePads = {};
+        completeAclaraciones = {transporta:'', receptor:''};
+        completeError = '';
+        view = 'complete-signature';
+        render();
+        loadOneSubmission(sub.id);
+      });
+      holder.appendChild(row);
+    });
+  }
+  return sheet;
+}
+
+async function loadOneSubmission(id){
+  try{
+    const r = await window.storage.get('submissions:'+id, true);
+    if(r && r.value) activeOpenSub = JSON.parse(r.value);
+  }catch(e){
+    console.error(e);
+  }
+  render();
+}
+
+function renderCompleteSignature(){
+  const sheet = el(`<div class="sheet"></div>`);
+  const back = el(`<div class="section" style="border-bottom:none;padding-bottom:0;"><button class="back-link" id="backBtn">← Volver a remitos abiertos</button></div>`);
+  sheet.appendChild(back);
+  const backBtn = back.querySelector('#backBtn');
+  backBtn.addEventListener('click', () => { view='open-list'; render(); loadOpenSubmissions(); });
+
+  if(!activeOpenSub){
+    sheet.appendChild(el(`<div class="empty-state">Cargando remito…</div>`));
+    return sheet;
+  }
+
+  const sub = activeOpenSub;
+  const infoSec = el(`
+    <div class="section">
+      <h2>Datos del remito ${sub.id}</h2>
+      <p class="sub" style="margin:0 0 4px;"><strong>Fecha:</strong> ${sub.fecha||'—'}</p>
+      <p class="sub" style="margin:0 0 4px;"><strong>Remitente:</strong> ${sub.remitente||'—'}</p>
+      <p class="sub" style="margin:0 0 4px;"><strong>Transporta:</strong> ${sub.transporta||'—'}</p>
+      <p class="sub" style="margin:0 0 4px;"><strong>Destinatario:</strong> ${sub.destinatario||'—'}</p>
+    </div>
+  `);
+  sheet.appendChild(infoSec);
+
+  const itemsSec = el(`<div class="section"><h2>Mercadería</h2></div>`);
+  const table = el(`
+    <table class="items">
+      <thead><tr><th style="width:70px">Cantidad</th><th style="width:150px">N° Serial</th><th>Descripción</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  `);
+  const tbody = table.querySelector('tbody');
+  (sub.items||[]).forEach(it => {
+    tbody.appendChild(el(`
+      <tr><td class="qty">${it.cantidad||''}</td><td class="serial">${it.serial||''}</td><td class="desc">${it.descripcion||''}</td></tr>
+    `));
+  });
+  itemsSec.appendChild(table);
+  sheet.appendChild(itemsSec);
+
+  const sigSec = el(`<div class="section"><h2>Firmas</h2></div>`);
+  const signersGrid = el(`<div class="signers"></div>`);
+
+  // Remitente: siempre ya firmado en este punto
+  const remBlock = el(`
+    <div class="signer-block" style="opacity:.85;">
+      <h3>Remitente</h3>
+      <div class="cap sig-cap">Firma</div>
+      <div class="sig-canvas-wrap" style="background:#fff;"><img src="${sub.firmas.remitente.firma}" style="width:100%;height:110px;object-fit:contain;"></div>
+      <div class="sig-tools"><span class="sig-status ok">firmado</span></div>
+      <div class="cap" style="margin-top:10px;">Aclaración: <strong>${sub.firmas.remitente.aclaracion}</strong></div>
+    </div>
+  `);
+  signersGrid.appendChild(remBlock);
+
+  ['transporta','receptor'].forEach(key => {
+    const label = key === 'transporta' ? 'Transporta' : 'Receptor';
+    if(sub.firmas && sub.firmas[key]){
+      const doneBlock = el(`
+        <div class="signer-block" style="opacity:.85;">
+          <h3>${label}</h3>
+          <div class="cap sig-cap">Firma</div>
+          <div class="sig-canvas-wrap" style="background:#fff;"><img src="${sub.firmas[key].firma}" style="width:100%;height:110px;object-fit:contain;"></div>
+          <div class="sig-tools"><span class="sig-status ok">firmado</span></div>
+          <div class="cap" style="margin-top:10px;">Aclaración: <strong>${sub.firmas[key].aclaracion}</strong></div>
+        </div>
+      `);
+      signersGrid.appendChild(doneBlock);
+    } else {
+      const block = el(`
+        <div class="signer-block">
+          <h3>${label} <span style="color:var(--red-dark);font-weight:400;">(pendiente)</span></h3>
+          <div class="cap sig-cap">Firma</div>
+          <div class="sig-canvas-wrap">
+            <canvas></canvas>
+            <div class="sig-placeholder">firmar aquí</div>
+          </div>
+          <div class="sig-tools">
+            <button class="clear-sig">Limpiar</button>
+            <span class="sig-status pending">sin firma</span>
+          </div>
+          <label class="acl-label">Aclaración</label>
+          <input type="text" placeholder="Nombre y apellido">
+        </div>
+      `);
+      const canvas = block.querySelector('canvas');
+      const placeholder = block.querySelector('.sig-placeholder');
+      const status = block.querySelector('.sig-status');
+      const pad = new SignaturePad(canvas);
+      pad.onchange = () => {
+        if(pad.isEmpty()){
+          placeholder.style.display = 'flex';
+          status.textContent = 'sin firma'; status.className = 'sig-status pending';
+        } else {
+          placeholder.style.display = 'none';
+          status.textContent = 'firmado'; status.className = 'sig-status ok';
+        }
+      };
+      completePads[key] = pad;
+      block.querySelector('.clear-sig').addEventListener('click', () => pad.clear());
+      const aclInput = block.querySelector('input[type=text]');
+      aclInput.value = completeAclaraciones[key] || '';
+      aclInput.addEventListener('input', e => completeAclaraciones[key] = e.target.value);
+      signersGrid.appendChild(block);
+    }
+  });
+
+  sigSec.appendChild(signersGrid);
+  sheet.appendChild(sigSec);
+
+  const footer = el(`<div class="footer-actions"></div>`);
+  const btn = el(`<button class="submit-btn">Guardar firma</button>`);
+  btn.addEventListener('click', () => handleCompleteSignature());
+  footer.appendChild(btn);
+  if(completeError){
+    footer.appendChild(el(`<div class="error-msg">${completeError}</div>`));
+  }
+  sheet.appendChild(footer);
+
+  return sheet;
+}
+
+async function handleCompleteSignature(){
+  completeError = '';
+  const sub = activeOpenSub;
+  const pendingKeys = Object.keys(completePads);
+  if(pendingKeys.length === 0){ return; }
+
+  const toSave = {};
+  let anyFilled = false;
+  for(const key of pendingKeys){
+    const pad = completePads[key];
+    const acl = (completeAclaraciones[key] || '').trim();
+    const hasFirma = !pad.isEmpty();
+    if(hasFirma !== !!acl){
+      completeError = `Completá firma y aclaración, o dejá ambas vacías.`;
+      render(); return;
+    }
+    if(hasFirma && acl){
+      toSave[key] = {firma: pad.toDataURL(), aclaracion: acl};
+      anyFilled = true;
+    }
+  }
+  if(!anyFilled){
+    completeError = 'Firmá al menos uno de los campos pendientes antes de guardar.';
+    render(); return;
+  }
+
+  const updated = {
+    ...sub,
+    firmas: {...sub.firmas, ...toSave}
+  };
+
+  try{
+    const res = await window.storage.set('submissions:'+sub.id, JSON.stringify(updated), true);
+    if(!res){ completeError = 'No se pudo guardar. Probá de nuevo.'; render(); return; }
+  }catch(err){
+    console.error(err);
+    completeError = 'Error de almacenamiento. Probá de nuevo.';
+    render(); return;
+  }
+
+  submittedId = sub.id;
+  submittedStillOpen = isSubOpen(updated);
+  activeOpenId = null; activeOpenSub = null; completePads = {}; completeAclaraciones = {};
+  view = 'success';
+  render();
+}
+
+function renderAdminLogin(){
+  const sheet = el(`
+    <div class="sheet admin-sheet">  <button class="back-link" id="backBtn">← Volver al formulario</button>
+      <h2>Panel de administración</h2>
+      <p class="sub">Acceso restringido. Solo el administrador puede exportar el resumen en Excel.</p>
+      <div class="admin-login">
+        <input type="password" id="pwInput" placeholder="Contraseña de administrador">
+        <button id="loginBtn">Ingresar</button>
+        ${adminError ? `<div class="error-msg">${adminError}</div>` : ''}
+      </div>
+    </div>
+  `);
+  sheet.querySelector('#backBtn').addEventListener('click', () => { view='form'; render(); });
+  const pwInput = sheet.querySelector('#pwInput');
+  const loginBtn = sheet.querySelector('#loginBtn');
+  const doLogin = async () => {
+    loginBtn.disabled = true;
+    const stored = await getAdminPassword();
+    loginBtn.disabled = false;
+    if(pwInput.value === stored){
+      adminAuthed = true; adminError=''; view='admin-panel';
+      render();
+      loadSubmissions();
+    } else {
+      adminError = 'Contraseña incorrecta.';
+      render();
+    }
+  };
+  loginBtn.addEventListener('click', doLogin);
+  pwInput.addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+  return sheet;
+}
+
+async function loadSubmissions(){
+  loadingSubs = true;
+  render();
+  try{
+    const listRes = await window.storage.list('submissions:', true);
+    const keys = (listRes && listRes.keys) ? listRes.keys : [];
+    const results = [];
+    for(const k of keys){
+      try{
+        const r = await window.storage.get(k, true);
+        if(r && r.value) results.push(JSON.parse(r.value));
+      }catch(e){ /* skip unreadable entry */ }
+    }
+    results.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
+    submissions = results;
+  }catch(err){
+    console.error(err);
+    submissions = [];
+  }
+  loadingSubs = false;
+  render();
+}
+
+function renderAdminPanel(){
+  const sheet = el(`
+    <div class="sheet admin-sheet">
+      <button class="back-link" id="backBtn">← Volver al formulario</button>
+      <h2>Remitos registrados</h2>
+      <p class="sub">Visible solo para el administrador. Los datos se comparten entre todos los usuarios de esta app.</p>
+      <div class="admin-toolbar">
+        <span class="sub" style="margin:0">${submissions.length} remito(s) · ${submissions.filter(isSubOpen).length} abierto(s)</span>
+        <button class="primary-btn" id="exportBtn">Descargar Excel</button>
+      </div>
+      <div id="tableHolder"></div>
+      <div class="pw-change-box">
+        <button class="back-link" id="togglePwBtn" style="margin:0">Cambiar contraseña de administrador ▾</button>
+        <div id="pwForm" style="display:none;margin-top:12px;">
+          <input type="password" id="curPw" placeholder="Contraseña actual">
+          <input type="password" id="newPw" placeholder="Nueva contraseña">
+          <input type="password" id="newPw2" placeholder="Repetir nueva contraseña">
+          <button id="savePwBtn">Guardar nueva contraseña</button>
+          <div id="pwMsg" class="note" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+  `);
+  sheet.querySelector('#backBtn').addEventListener('click', () => { view='form'; render(); });
+  sheet.querySelector('#exportBtn').addEventListener('click', exportExcel);
+
+  const toggleBtn = sheet.querySelector('#togglePwBtn');
+  const pwForm = sheet.querySelector('#pwForm');
+  toggleBtn.addEventListener('click', () => {
+    pwForm.style.display = pwForm.style.display === 'none' ? 'block' : 'none';
+  });
+  sheet.querySelector('#savePwBtn').addEventListener('click', async () => {
+    const cur = sheet.querySelector('#curPw').value;
+    const n1 = sheet.querySelector('#newPw').value;
+    const n2 = sheet.querySelector('#newPw2').value;
+    const msg = sheet.querySelector('#pwMsg');
+    const stored = await getAdminPassword();
+    if(cur !== stored){ msg.textContent = 'La contraseña actual no coincide.'; msg.style.color = 'var(--err)'; return; }
+    if(!n1 || n1.length < 6){ msg.textContent = 'La nueva contraseña debe tener al menos 6 caracteres.'; msg.style.color='var(--err)'; return; }
+    if(n1 !== n2){ msg.textContent = 'Las contraseñas nuevas no coinciden.'; msg.style.color='var(--err)'; return; }
+    const res = await setAdminPassword(n1);
+    if(res){ msg.textContent = 'Contraseña actualizada correctamente.'; msg.style.color='var(--green)'; }
+    else { msg.textContent = 'No se pudo guardar. Probá de nuevo.'; msg.style.color='var(--err)'; }
+  });
+
+  const holder = sheet.querySelector('#tableHolder');
+  if(loadingSubs){
+    holder.appendChild(el(`<div class="empty-state">Cargando remitos…</div>`));
+  } else if(submissions.length === 0){
+    holder.appendChild(el(`<div class="empty-state">Todavía no hay remitos cargados.</div>`));
+  } else {
+    const table = el(`
+      <table class="admin-table">
+        <thead><tr>
+          <th>Fecha</th><th>N°</th><th>Remitente</th><th>Transporta</th><th>Destinatario</th>
+          <th>Ítems</th><th>Firmas</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    `);
+    const tbody = table.querySelector('tbody');
+    submissions.forEach(sub => {
+      const isOpen = isSubOpen(sub);
+      const tr = el(`
+        <tr>
+          <td>${sub.fecha||'—'}</td>
+          <td>${sub.id}</td>
+          <td>${sub.remitente||'—'}</td>
+          <td>${sub.transporta||'—'}</td>
+          <td>${sub.destinatario||'—'}</td>
+          <td>${(sub.items||[]).length}</td>
+          <td><span class="badge ${isOpen?'no':'ok'}">${isOpen?'abierto':'cerrado'}</span></td>
+          <td></td>
+        </tr>
+      `);
+      const delBtn = el(`<button class="del-btn">Eliminar</button>`);
+      delBtn.addEventListener('click', async () => {
+        if(!confirm('¿Eliminar este remito? Esta acción no se puede deshacer.')) return;
+        await window.storage.delete('submissions:'+sub.id, true);
+        loadSubmissions();
+      });
+      tr.lastElementChild.appendChild(delBtn);
+      tbody.appendChild(tr);
+    });
+    holder.appendChild(table);
+  }
+  return sheet;
+}
+
+function exportExcel(){
+  if(submissions.length === 0){ alert('No hay remitos para exportar.'); return; }
+
+  const summaryRows = submissions.map(s => ({
+    'N° Remito': s.id,
+    'Estado': isSubOpen(s) ? 'Abierto' : 'Cerrado',
+    'Fecha': s.fecha,
+    'Remitente': s.remitente,
+    'Transporta': s.transporta,
+    'Destinatario': s.destinatario,
+    'Cant. Ítems': (s.items||[]).length,
+    'Firmó Remitente': s.firmas?.remitente?.aclaracion || '',
+    'Firmó Transporta': s.firmas?.transporta?.aclaracion || '',
+    'Firmó Receptor': s.firmas?.receptor?.aclaracion || '',
+    'Registrado (UTC)': s.createdAt
+  }));
+
+  const detailRows = [];
+  submissions.forEach(s => {
+    (s.items||[]).forEach(it => {
+      detailRows.push({
+        'N° Remito': s.id,
+        'Fecha': s.fecha,
+        'Cantidad': it.cantidad,
+        'N° Serial': it.serial,
+        'Descripción': it.descripcion
+      });
+    });
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.json_to_sheet(summaryRows);
+  const ws2 = XLSX.utils.json_to_sheet(detailRows);
+  XLSX.utils.book_append_sheet(wb, ws1, 'Remitos');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Detalle de items');
+  const stamp = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `remitos-ferniplast-${stamp}.xlsx`);
+}
+
+document.getElementById('openListLinkBtn').addEventListener('click', () => {
+  view = 'open-list';
+  render();
+  loadOpenSubmissions();
+});
+
+document.getElementById('adminLinkBtn').addEventListener('click', () => {
+  view = adminAuthed ? 'admin-panel' : 'admin-login';
+  render();
+  if(adminAuthed) loadSubmissions();
+});
+
+render();
+</script>
+</body>
+</html>

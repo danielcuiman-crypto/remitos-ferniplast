@@ -485,7 +485,7 @@ function renderForm(){
   sheet.appendChild(itemSec);
 
   // signatures
-  const sigSec = el(`<div class="section"><h2>Firmas</h2><p class="cap" style="margin:-8px 0 14px;">La firma de Remitente es obligatoria para guardar. Transporta y Receptor pueden completarse más tarde desde "Remitos abiertos".</p></div>`);
+  const sigSec = el(`<div class="section"><h2>Firmas</h2><p class="cap" style="margin:-8px 0 14px;">Solo la firma y aclaración de Remitente son obligatorias. Transporta y Receptor son opcionales; si falta alguno, el remito se guarda como abierto.</p></div>`);
   const signersGrid = el(`<div class="signers"></div>`);
   [['remitente','Remitente',true],['transporta','Transporta',false],['receptor','Receptor',false]].forEach(([key,label,required])=>{
     const block = el(`
@@ -559,19 +559,12 @@ async function handleSubmit(){
     formError = 'Agregá al menos un artículo con cantidad y descripción.';
     render(); return;
   }
-  // Remitente es obligatorio. Transporta y Receptor son opcionales, pero si se
-  // empezó a completar uno (firma o aclaración) hay que completar el otro también.
+  // Solo Remitente es obligatorio para guardar.
+  // Transporta y Receptor pueden quedar sin firma y/o aclaración.
+  // Si alguno de los dos no está completo, el remito queda ABIERTO.
   if(pads.remitente.isEmpty() || !signers.remitente.aclaracion.trim()){
     formError = 'Falta la firma o la aclaración de Remitente.';
     render(); return;
-  }
-  for(const [key,label] of [['transporta','Transporta'],['receptor','Receptor']]){
-    const hasFirma = !pads[key].isEmpty();
-    const hasAcl = !!signers[key].aclaracion.trim();
-    if(hasFirma !== hasAcl){
-      formError = `Completá firma y aclaración de ${label}, o dejá ambas vacías para completarlas después.`;
-      render(); return;
-    }
   }
 
   const firmas = {

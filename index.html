@@ -548,10 +548,10 @@ function getDestinatarioValue(){
 async function handleSubmit(){
   formError = '';
   const destinatarioFinal = getDestinatarioValue();
-  if(!header.fecha || !header.remitente.trim() || !header.transporta.trim() || !destinatarioFinal){
+  if(!header.fecha || !header.remitente.trim() || !destinatarioFinal){
     formError = header.destinatario === 'Otro' && !header.destinatarioOtro.trim()
       ? 'Escribí el nombre del destinatario en el campo "Otro".'
-      : 'Completá fecha, remitente, transporta y destinatario.';
+      : 'Completá fecha, remitente y destinatario.';
     render(); return;
   }
   const validItems = itemRows.filter(r => r.cantidad.trim() && r.descripcion.trim());

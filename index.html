@@ -6,6 +6,7 @@
 <title>Remito de Transporte Interno · Ferniplast</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root{
     --bg:#14181b;
@@ -126,7 +127,7 @@
   }
   .add-row-btn:hover{border-color:var(--red);color:var(--red-dark);}
 
-  .signers{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;}
+  .signers{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
   @media(max-width:640px){.signers{grid-template-columns:1fr;}}
   .signer-block{border:1px solid var(--line);padding:12px;background:#fff;}
   .signer-block h3{
@@ -216,6 +217,8 @@
   .badge.no{color:var(--err);border-color:var(--err);}
   .del-btn{background:none;border:none;color:#b8b1a0;cursor:pointer;font-size:11px;text-decoration:underline;}
   .del-btn:hover{color:var(--err);}
+  .view-btn{background:none;border:none;color:var(--green);cursor:pointer;font-size:11px;text-decoration:underline;margin-right:8px;}
+  .view-btn:hover{color:#1f5d39;}
   .empty-state{color:var(--muted);font-size:13px;padding:20px 0;text-align:center;}
   .note{font-size:11px;color:var(--muted);margin-top:16px;line-height:1.5;}
   .pw-change-box{margin-top:26px;padding-top:18px;border-top:1px solid var(--line);}
@@ -255,6 +258,7 @@ const DEFAULT_ADMIN_PASSWORD = "ferniplast2026"; // acceso administrativo tempor
 const SUPABASE_URL = "https://eakwgbmnxlngyighkwzr.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_4YXktqp8tyNz_nqMKVmD-A_3bPbpwKw";
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const RECEIPT_BUCKET = "remitos-comprobantes";
 
 const DESTINATARIO_OPTIONS = [
   'Ferni1','Ferni2','Ferni3','Ferni4','Ferni5','Ferni6','Ferni7','Ferni8','Ferni9','Ferni10',
@@ -306,6 +310,7 @@ let itemRows = Array.from({length:5}, () => ({cantidad:'', serial:'', descripcio
 let header = {fecha:'', remitente:'', transporta:'', destinatario:'', destinatarioOtro:''};
 let signers = {
   remitente: {aclaracion:''},
+  centroLogistico: {aclaracion:''},
   transporta: {aclaracion:''},
   receptor: {aclaracion:''}
 };
@@ -315,6 +320,178 @@ function el(html){
   const t = document.createElement('template');
   t.innerHTML = html.trim();
   return t.content.firstChild;
+}
+
+function escapeHtml(value){
+  return String(value ?? '')
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'",'&#039;');
+}
+
+function receiptStoragePath(sub){
+  const year = (sub.fecha || '').slice(0,4) || 'sin-fecha';
+  return `${year}/${sub.id}.png`;
+}
+
+function signatureReceiptBlock(title, signer, legacyText='Pendiente'){
+  if(signer && signer.firma){
+    return `
+      <div style="border:1px solid #d8d2c4;padding:12px;background:#fff;min-height:160px;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:7px;color:#8b8578;">${escapeHtml(title)}</div>
+        <img src="${signer.firma}" style="display:block;width:100%;height:90px;object-fit:contain;border-bottom:1px solid #211d17;margin-bottom:8px;">
+        <div style="font-size:12px;color:#211d17;">Aclaración: <strong>${escapeHtml(signer.aclaracion || '')}</strong></div>
+      </div>`;
+  }
+  return `
+    <div style="border:1px solid #d8d2c4;padding:12px;background:#fff;min-height:160px;">
+      <div style="font-size:12px;font-weight:700;margin-bottom:7px;color:#8b8578;">${escapeHtml(title)}</div>
+      <div style="height:90px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #211d17;color:#8b8578;font-size:12px;">${escapeHtml(legacyText)}</div>
+      <div style="font-size:12px;color:#8b8578;margin-top:8px;">Sin aclaración registrada</div>
+    </div>`;
+}
+
+function buildReceiptForImage(sub){
+  const firmas = sub.firmas || {};
+  const requiresCenter = firmas.requiereCentroLogistico === true;
+  const itemRowsHtml = (sub.items || []).map(it => `
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid #d8d2c4;text-align:center;">${escapeHtml(it.cantidad || '')}</td>
+        <td style="padding:8px;border-bottom:1px solid #d8d2c4;">${escapeHtml(it.serial || '—')}</td>
+        <td style="padding:8px;border-bottom:1px solid #d8d2c4;">${escapeHtml(it.descripcion || '')}</td>
+      </tr>`).join('');
+
+  const node = document.createElement('div');
+  node.style.cssText = 'position:fixed;left:-10000px;top:0;width:820px;background:#faf7f1;color:#211d17;font-family:Arial,sans-serif;padding:0;z-index:-1;';
+  node.innerHTML = `
+    <div style="border:1px solid #cfc8b9;background:#faf7f1;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:26px 30px 20px;border-bottom:2px solid #211d17;">
+        <img src="${LOGO_DATA_URI}" style="height:52px;width:auto;">
+        <div style="text-align:right;">
+          <div style="font-size:13px;letter-spacing:.06em;color:#8b8578;margin-bottom:8px;">REMITO DE TRANSPORTE INTERNO</div>
+          <div style="font-size:17px;font-weight:700;">${escapeHtml(sub.id)}</div>
+          <div style="font-size:13px;margin-top:5px;">Fecha: ${escapeHtml(sub.fecha || '—')}</div>
+        </div>
+      </div>
+
+      <div style="padding:20px 30px;border-bottom:1px solid #d8d2c4;">
+        <div style="font-size:12px;font-weight:700;color:#9c1420;margin-bottom:12px;">Datos generales</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr><td style="padding:5px 0;width:150px;color:#8b8578;">Remitente</td><td><strong>${escapeHtml(sub.remitente || '—')}</strong></td></tr>
+          <tr><td style="padding:5px 0;color:#8b8578;">Transporta</td><td><strong>${escapeHtml(sub.transporta || '—')}</strong></td></tr>
+          <tr><td style="padding:5px 0;color:#8b8578;">Destinatario</td><td><strong>${escapeHtml(sub.destinatario || '—')}</strong></td></tr>
+        </table>
+      </div>
+
+      <div style="padding:20px 30px;border-bottom:1px solid #d8d2c4;">
+        <div style="font-size:12px;font-weight:700;color:#9c1420;margin-bottom:12px;">Mercadería transportada</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;background:#fff;border:1px solid #d8d2c4;">
+          <thead>
+            <tr>
+              <th style="padding:8px;text-align:center;border-bottom:1px solid #211d17;width:90px;">Cantidad</th>
+              <th style="padding:8px;text-align:left;border-bottom:1px solid #211d17;width:190px;">N° Serial</th>
+              <th style="padding:8px;text-align:left;border-bottom:1px solid #211d17;">Descripción</th>
+            </tr>
+          </thead>
+          <tbody>${itemRowsHtml}</tbody>
+        </table>
+      </div>
+
+      <div style="padding:20px 30px;border-bottom:1px solid #d8d2c4;">
+        <div style="font-size:12px;font-weight:700;color:#9c1420;margin-bottom:12px;">Trazabilidad / Firmas</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          ${signatureReceiptBlock('Remitente', firmas.remitente)}
+          ${signatureReceiptBlock('Recibe en Centro Logístico', firmas.centroLogistico, requiresCenter ? 'Pendiente' : 'No aplica · remito anterior')}
+          ${signatureReceiptBlock('Transporta', firmas.transporta)}
+          ${signatureReceiptBlock('Receptor final', firmas.receptor)}
+        </div>
+      </div>
+
+      <div style="padding:18px 30px;text-align:center;">
+        <div style="display:inline-block;border:2px solid #2f7a4d;color:#2f7a4d;padding:7px 18px;font-size:13px;font-weight:700;letter-spacing:.06em;">✓ REMITO CERRADO</div>
+        <div style="font-size:10px;color:#8b8578;margin-top:10px;">Comprobante digital generado automáticamente por Transporte Interno · Ferniplast</div>
+      </div>
+    </div>`;
+  document.body.appendChild(node);
+  return node;
+}
+
+async function waitForReceiptImages(node){
+  const images = Array.from(node.querySelectorAll('img'));
+  await Promise.all(images.map(img => {
+    if(img.complete) return Promise.resolve();
+    return new Promise(resolve => {
+      img.onload = resolve;
+      img.onerror = resolve;
+    });
+  }));
+}
+
+async function generateReceiptBlob(sub){
+  const node = buildReceiptForImage(sub);
+  try{
+    await waitForReceiptImages(node);
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    const canvas = await html2canvas(node, {
+      backgroundColor: '#faf7f1',
+      scale: 2,
+      useCORS: true,
+      logging: false
+    });
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('No se pudo generar la imagen del remito.')), 'image/png', 0.95);
+    });
+  } finally {
+    node.remove();
+  }
+}
+
+async function saveReceiptImage(sub){
+  if(isSubOpen(sub)) return {ok:false, skipped:true};
+  const blob = await generateReceiptBlob(sub);
+  const path = receiptStoragePath(sub);
+  const { error } = await db.storage
+    .from(RECEIPT_BUCKET)
+    .upload(path, blob, { contentType:'image/png', upsert:true });
+  if(error) throw error;
+  return {ok:true, path};
+}
+
+async function openReceiptImage(sub){
+  const popup = window.open('', '_blank');
+  if(popup){
+    popup.document.write('<p style="font-family:Arial,sans-serif;padding:20px;">Cargando comprobante…</p>');
+  }
+  try{
+    const path = receiptStoragePath(sub);
+    let { data, error } = await db.storage.from(RECEIPT_BUCKET).download(path);
+
+    // Si es un remito cerrado anterior a esta mejora, lo generamos al primer acceso.
+    if(error && !isSubOpen(sub)){
+      await saveReceiptImage(sub);
+      const retry = await db.storage.from(RECEIPT_BUCKET).download(path);
+      data = retry.data;
+      error = retry.error;
+    }
+
+    if(error) throw error;
+    const url = URL.createObjectURL(data);
+    if(popup){
+      popup.location.href = url;
+    } else {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.click();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }catch(err){
+    console.error(err);
+    if(popup) popup.close();
+    alert('No se pudo abrir el comprobante. Verificá que el Storage de Supabase esté configurado.');
+  }
 }
 
 class SignaturePad{
@@ -485,9 +662,9 @@ function renderForm(){
   sheet.appendChild(itemSec);
 
   // signatures
-  const sigSec = el(`<div class="section"><h2>Firmas</h2><p class="cap" style="margin:-8px 0 14px;">Solo la firma y aclaración de Remitente son obligatorias. Transporta y Receptor son opcionales; si falta alguno, el remito se guarda como abierto.</p></div>`);
+  const sigSec = el(`<div class="section"><h2>Firmas</h2><p class="cap" style="margin:-8px 0 14px;">Solo la firma y aclaración de Remitente son obligatorias al crear el remito. Luego deben completar la recepción en Centro Logístico, Transporta y Receptor. Mientras falte alguna de estas firmas, el remito queda abierto.</p></div>`);
   const signersGrid = el(`<div class="signers"></div>`);
-  [['remitente','Remitente',true],['transporta','Transporta',false],['receptor','Receptor',false]].forEach(([key,label,required])=>{
+  [['remitente','Remitente',true],['centroLogistico','Recibe en Centro Logístico',false],['transporta','Transporta',false],['receptor','Receptor',false]].forEach(([key,label,required])=>{
     const block = el(`
       <div class="signer-block">
         <h3>${label}${required ? '' : ' <span style="color:var(--muted);font-weight:400;">(opcional ahora)</span>'}</h3>
@@ -568,7 +745,10 @@ async function handleSubmit(){
   }
 
   const firmas = {
+    requiereCentroLogistico: true,
     remitente: {firma: pads.remitente.toDataURL(), aclaracion: signers.remitente.aclaracion.trim()},
+    centroLogistico: (!pads.centroLogistico.isEmpty() && signers.centroLogistico.aclaracion.trim())
+      ? {firma: pads.centroLogistico.toDataURL(), aclaracion: signers.centroLogistico.aclaracion.trim()} : null,
     transporta: (!pads.transporta.isEmpty() && signers.transporta.aclaracion.trim())
       ? {firma: pads.transporta.toDataURL(), aclaracion: signers.transporta.aclaracion.trim()} : null,
     receptor: (!pads.receptor.isEmpty() && signers.receptor.aclaracion.trim())
@@ -607,7 +787,14 @@ async function handleSubmit(){
   }
 
   submittedId = id;
-  submittedStillOpen = !(firmas.transporta && firmas.receptor);
+  submittedStillOpen = isSubOpen(data);
+  if(!submittedStillOpen){
+    try{
+      await saveReceiptImage(data);
+    }catch(err){
+      console.error('El remito quedó cerrado, pero no se pudo guardar su imagen:', err);
+    }
+  }
   view = 'success';
   resetForm();
   render();
@@ -616,7 +803,7 @@ async function handleSubmit(){
 function resetForm(){
   itemRows = Array.from({length:5}, () => ({cantidad:'', serial:'', descripcion:''}));
   header = {fecha:'', remitente:'', transporta:'', destinatario:'', destinatarioOtro:''};
-  signers = {remitente:{aclaracion:''}, transporta:{aclaracion:''}, receptor:{aclaracion:''}};
+  signers = {remitente:{aclaracion:''}, centroLogistico:{aclaracion:''}, transporta:{aclaracion:''}, receptor:{aclaracion:''}};
   pads = {};
   formError = '';
 }
@@ -627,8 +814,8 @@ function renderSuccess(){
       <div class="stamp">${submittedStillOpen ? '⏳ PENDIENTE' : '✓ REGISTRADO'}</div>
       <h2>${submittedStillOpen ? 'Remito guardado, falta completar firmas' : 'Remito guardado'}</h2>
       <p>${submittedStillOpen
-        ? 'Queda en "Remitos abiertos" hasta que Transporta y Receptor firmen.'
-        : 'El comprobante quedó registrado con firmas de las tres partes.'}</p>
+        ? 'Queda en "Remitos abiertos" hasta completar Centro Logístico, Transporta y Receptor.'
+        : 'El comprobante quedó registrado con todas las firmas del circuito y se generó su imagen digital.'}</p>
       <div class="rid">N° ${submittedId}</div>
     </div>
   `);
@@ -646,13 +833,17 @@ function renderSuccess(){
 }
 
 function isSubOpen(sub){
-  return !(sub.firmas && sub.firmas.transporta && sub.firmas.receptor);
+  const firmas = sub.firmas || {};
+  const faltaCentro = firmas.requiereCentroLogistico === true && !firmas.centroLogistico;
+  return faltaCentro || !firmas.transporta || !firmas.receptor;
 }
 
 function missingSigners(sub){
   const missing = [];
-  if(!sub.firmas || !sub.firmas.transporta) missing.push('Transporta');
-  if(!sub.firmas || !sub.firmas.receptor) missing.push('Receptor');
+  const firmas = sub.firmas || {};
+  if(firmas.requiereCentroLogistico === true && !firmas.centroLogistico) missing.push('Centro Logístico');
+  if(!firmas.transporta) missing.push('Transporta');
+  if(!firmas.receptor) missing.push('Receptor');
   return missing;
 }
 
@@ -683,7 +874,7 @@ function renderOpenList(){
     <div class="sheet admin-sheet">
       <button class="back-link" id="backBtn">← Volver al formulario</button>
       <h2>Remitos abiertos</h2>
-      <p class="sub">Remitos que todavía necesitan la firma de Transporta y/o Receptor.</p>
+      <p class="sub">Remitos que todavía necesitan completar alguna firma del circuito: Centro Logístico, Transporta y/o Receptor.</p>
       <div id="openHolder"></div>
     </div>
   `);
@@ -712,7 +903,7 @@ function renderOpenList(){
         activeOpenId = sub.id;
         activeOpenSub = null;
         completePads = {};
-        completeAclaraciones = {transporta:'', receptor:''};
+        completeAclaraciones = {centroLogistico:'', transporta:'', receptor:''};
         completeError = '';
         view = 'complete-signature';
         render();
@@ -796,8 +987,12 @@ function renderCompleteSignature(){
   `);
   signersGrid.appendChild(remBlock);
 
-  ['transporta','receptor'].forEach(key => {
-    const label = key === 'transporta' ? 'Transporta' : 'Receptor';
+  const completionKeys = (sub.firmas && sub.firmas.requiereCentroLogistico === true)
+    ? ['centroLogistico','transporta','receptor']
+    : ['transporta','receptor'];
+
+  completionKeys.forEach(key => {
+    const label = key === 'centroLogistico' ? 'Recibe en Centro Logístico' : (key === 'transporta' ? 'Transporta' : 'Receptor');
     if(sub.firmas && sub.firmas[key]){
       const doneBlock = el(`
         <div class="signer-block" style="opacity:.85;">
@@ -912,6 +1107,13 @@ async function handleCompleteSignature(){
 
   submittedId = sub.id;
   submittedStillOpen = isSubOpen(updated);
+  if(!submittedStillOpen){
+    try{
+      await saveReceiptImage(updated);
+    }catch(err){
+      console.error('El remito quedó cerrado, pero no se pudo guardar su imagen:', err);
+    }
+  }
   activeOpenId = null; activeOpenSub = null; completePads = {}; completeAclaraciones = {};
   view = 'success';
   render();
@@ -1025,7 +1227,7 @@ function renderAdminPanel(){
       <table class="admin-table">
         <thead><tr>
           <th>Fecha</th><th>N°</th><th>Remitente</th><th>Transporta</th><th>Destinatario</th>
-          <th>Ítems</th><th>Firmas</th><th></th>
+          <th>Ítems</th><th>Firmas</th><th>Comprobante</th><th></th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -1043,8 +1245,16 @@ function renderAdminPanel(){
           <td>${(sub.items||[]).length}</td>
           <td><span class="badge ${isOpen?'no':'ok'}">${isOpen?'abierto':'cerrado'}</span></td>
           <td></td>
+          <td></td>
         </tr>
       `);
+      if(!isOpen){
+        const viewBtn = el(`<button class="view-btn">Ver remito</button>`);
+        viewBtn.addEventListener('click', () => openReceiptImage(sub));
+        tr.children[7].appendChild(viewBtn);
+      } else {
+        tr.children[7].textContent = '—';
+      }
       const delBtn = el(`<button class="del-btn">Eliminar</button>`);
       delBtn.addEventListener('click', async () => {
         if(!confirm('¿Eliminar este remito? Esta acción no se puede deshacer.')) return;
@@ -1071,7 +1281,12 @@ function exportExcel(){
     'Transporta': s.transporta,
     'Destinatario': s.destinatario,
     'Cant. Ítems': (s.items||[]).length,
+    'Detalle de lo enviado': (s.items || []).map(it => {
+      const serial = it.serial ? ` - Serie: ${it.serial}` : '';
+      return `${it.cantidad} x ${it.descripcion}${serial}`;
+    }).join(' | '),
     'Firmó Remitente': s.firmas?.remitente?.aclaracion || '',
+    'Recibió Centro Logístico': s.firmas?.centroLogistico?.aclaracion || '',
     'Firmó Transporta': s.firmas?.transporta?.aclaracion || '',
     'Firmó Receptor': s.firmas?.receptor?.aclaracion || '',
     'Registrado (UTC)': s.createdAt
